@@ -12,10 +12,12 @@ Telegram App → Local MTProto Proxy (127.0.0.1:1443) → Rust engine → WSS (d
 
 | Layer | Language | Entry point |
 |-------|----------|-------------|
-| Native engine | Rust (`src/lib.rs`, 6 modules) | Cdylib → `libtgwsproxy.so` |
+| Native engine (Android) | Rust (`src/lib.rs`, 6 modules) | Cdylib → `libtgwsproxy.so` |
+| Native engine (Windows) | Rust (`src/main.rs`) | Binary → `tgwsproxy.exe` |
 | Android app | Kotlin + Jetpack Compose (`app/`) | APK via Gradle |
 
-**Both must be built in order.** `.so` files are prebuilt and checked in at `app/src/main/jniLibs/`.
+**Android:** `.so` files are prebuilt and checked in at `app/src/main/jniLibs/`.  
+**Windows:** binary uses the same engine code; build with `cargo build --release`.
 
 ## Commands
 
@@ -38,6 +40,9 @@ gradlew clean
 6. **Desktop `cargo build`** works for syntax-checking the Rust crate but `android_logger` is gated behind `#[cfg(target_os = "android")]`.
 7. **`cargo-ndk`** is installed automatically by `build_so.bat` if missing; Rust Android targets are installed automatically too.
 8. **Three APK flavors:** `arm32` (minsdk 21), `arm64` (minsdk 24), `universal`.
+9. **Windows binary** (`tgwsproxy.exe`): `cargo build --release` produces it. Run with `--help` for options.
+10. **Android builds** now use `--lib` flag in `build_so.bat` to skip the binary target.
+11. **Windows CLI args:** `--bind`, `--port`, `--secret`, `--dc-ips`, `--pool-size`, `--verbose`. Ctrl+C for graceful shutdown.
 
 ## Architecture notes
 

@@ -53,7 +53,7 @@ cargo ndk ^
   -t arm64-v8a ^
   --platform 24 ^
   -o "%ROOT_DIR%app\src\main\jniLibs" ^
-  build --release
+  build --lib --release
 
 if %errorlevel% neq 0 (
     echo BUILD FAILED for arm64-v8a!
@@ -66,7 +66,7 @@ cargo ndk ^
   -t armeabi-v7a ^
   --platform 21 ^
   -o "%ROOT_DIR%app\src\main\jniLibs" ^
-  build --release
+  build --lib --release
 
 if %errorlevel% neq 0 (
     echo BUILD FAILED for armeabi-v7a!

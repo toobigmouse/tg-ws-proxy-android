@@ -7,8 +7,12 @@ edition = "2021"
 name = "tgwsproxy"
 crate-type = ["cdylib"]
 
+[[bin]]
+name = "tgwsproxy"
+path = "src/main.rs"
+
 [dependencies]
-tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros", "signal"] }
 tokio-util = "0.7"
 tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
