@@ -40,7 +40,7 @@ gradlew clean
 6. **Desktop `cargo build`** works for syntax-checking the Rust crate but `android_logger` is gated behind `#[cfg(target_os = "android")]`.
 7. **`cargo-ndk`** is installed automatically by `build_so.bat` if missing; Rust Android targets are installed automatically too.
 8. **Three APK flavors:** `arm32` (minsdk 21), `arm64` (minsdk 24), `universal`.
-9. **Windows binary** (`tgwsproxy.exe`): `cargo build --release` produces it. Run with `--help` for options.
+9. **Windows binary** (`tgwsproxy-cli.exe`): `cargo build --release` produces it (plus `tgwsproxy.dll` — артефакт cdylib для Android, можно игнорировать). Run with `--help` for options.
 10. **Android builds** now use `--lib` flag in `build_so.bat` to skip the binary target.
 11. **Windows CLI args:** `--bind`, `--port`, `--secret`, `--dc-ips`, `--pool-size`, `--verbose`. Ctrl+C for graceful shutdown.
 
