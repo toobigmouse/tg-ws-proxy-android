@@ -9,6 +9,8 @@ pub mod balancer;
 pub mod service;
 #[cfg(windows)]
 pub mod tray;
+#[cfg(windows)]
+pub mod gui;
 
 pub struct Args {
     pub bind: String,
@@ -20,6 +22,7 @@ pub struct Args {
     pub log_file: String,
     pub firewall: bool,
     pub tray: bool,
+    pub gui: bool,
 }
 
 use config::*;

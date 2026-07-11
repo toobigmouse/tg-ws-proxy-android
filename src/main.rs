@@ -21,6 +21,7 @@ struct Config {
     log_file: String,
     firewall: bool,
     tray: bool,
+    gui: bool,
 }
 
 impl Default for Config {
@@ -35,6 +36,7 @@ impl Default for Config {
             log_file: String::new(),
             firewall: false,
             tray: false,
+            gui: false,
         }
     }
 }
@@ -143,6 +145,7 @@ fn parse_args(config: &Config) -> Args {
     let mut log_file = config.log_file.clone();
     let mut firewall = config.firewall;
     let mut tray = config.tray;
+    let mut gui = config.gui;
 
     while i < args.len() {
         match args[i].as_str() {
@@ -175,6 +178,9 @@ fn parse_args(config: &Config) -> Args {
             }
             "--tray" => {
                 tray = true;
+            }
+            "--gui" => {
+                gui = true;
             }
             "--install" => {
                 #[cfg(windows)]
@@ -219,6 +225,7 @@ fn parse_args(config: &Config) -> Args {
         log_file,
         firewall,
         tray,
+        gui,
     }
 }
 
@@ -236,6 +243,7 @@ fn print_help() {
     eprintln!("  --log-file <PATH>   файл лога (по умолч.: только stdout)");
     eprintln!("  --firewall          добавить правило firewall для порта");
     eprintln!("  --tray              режим системного трея (Windows)");
+    eprintln!("  --gui               графический интерфейс (Windows)");
     eprintln!("  --install           установить как Windows Service");
     eprintln!("  --uninstall         удалить Windows Service");
     eprintln!("  --verbose, -v       подробное логирование");
@@ -314,6 +322,27 @@ fn main() {
         generate_and_save_secret(&mut config);
     } else {
         generate_and_save_secret(&mut config);
+    }
+
+    // GUI mode
+    if args.gui {
+        #[cfg(windows)]
+        {
+            let native_options = eframe::NativeOptions {
+                viewport: egui::ViewportBuilder::default()
+                    .with_inner_size([800.0, 600.0])
+                    .with_title("TG WS Proxy"),
+                ..Default::default()
+            };
+            let _ = eframe::run_native(
+                "TG WS Proxy",
+                native_options,
+                Box::new(|_cc| Ok(Box::new(tgwsproxy::gui::ProxyApp::new(args)))),
+            );
+        }
+        #[cfg(not(windows))]
+        eprintln!("GUI поддерживается только на Windows");
+        std::process::exit(0);
     }
 
     // Tray mode

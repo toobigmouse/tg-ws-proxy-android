@@ -42,6 +42,8 @@ log = "0.4"
 [target.'cfg(windows)'.dependencies]
 windows-service = "0.7"
 tray-icon = "0.19"
+egui = "0.31"
+eframe = "0.31"
 
 [profile.release]
 opt-level = "z"

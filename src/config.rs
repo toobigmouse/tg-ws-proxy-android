@@ -44,6 +44,8 @@ pub static POOL_SIZE: AtomicI32 = AtomicI32::new(DEFAULT_POOL_SZ);
 pub static LOG_VERBOSE: AtomicBool = AtomicBool::new(false);
 pub static LOG_FILE: Lazy<Mutex<Option<std::fs::File>>> =
     Lazy::new(|| Mutex::new(None));
+pub static GUI_LOG: Lazy<parking_lot::Mutex<Vec<String>>> =
+    Lazy::new(|| parking_lot::Mutex::new(Vec::new()));
 
 #[derive(Clone)]
 pub struct Cfproxy429State {
@@ -270,6 +272,14 @@ fn emit(prefix: &str, msg: &str) {
     if let Ok(mut guard) = LOG_FILE.lock() {
         if let Some(ref mut file) = *guard {
             let _ = writeln!(file, "{}", line);
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let mut guard = GUI_LOG.lock();
+        guard.push(line);
+        if guard.len() > 1000 {
+            guard.remove(0);
         }
     }
 }

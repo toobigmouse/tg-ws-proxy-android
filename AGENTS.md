@@ -42,7 +42,7 @@ gradlew clean
 8. **Three APK flavors:** `arm32` (minsdk 21), `arm64` (minsdk 24), `universal`.
 9. **Windows binary** (`tgwsproxy-cli.exe`): `cargo build --release` produces it (plus `tgwsproxy.dll` — артефакт cdylib для Android, можно игнорировать). Run with `--help` for options.
 10. **Android builds** now use `--lib` flag in `build_so.bat` to skip the binary target.
-11. **Windows CLI:** `config.toml` auto-loaded from exe dir; CLI flags override it. Secret auto-generated if missing. Flags: `--bind`, `--port`, `--secret`, `--dc-ips`, `--pool-size`, `--log-file`, `--firewall`, `--tray`, `--install`, `--uninstall`, `--verbose`. `--install`/`--uninstall` require admin rights. `--tray` hides the console and shows a system tray icon. Ctrl+C for graceful shutdown. File logging (`--log-file`) appends to file + stdout simultaneously.
+11. **Windows CLI:** `config.toml` auto-loaded from exe dir; CLI flags override it. Secret auto-generated if missing. Flags: `--bind`, `--port`, `--secret`, `--dc-ips`, `--pool-size`, `--log-file`, `--firewall`, `--tray`, `--gui`, `--install`, `--uninstall`, `--verbose`. `--install`/`--uninstall` require admin rights. `--tray` hides the console and shows a system tray icon. `--gui` opens a native window (egui). Ctrl+C for graceful shutdown. File logging (`--log-file`) appends to file + stdout simultaneously.
 
 ## Architecture notes
 
