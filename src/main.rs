@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 use tgwsproxy::cfproxy;
 use tgwsproxy::config::*;
@@ -5,6 +6,29 @@ use tgwsproxy::proxy::{parse_cidr_pool, run_proxy, WsPool};
 use tgwsproxy::{linfo, lwarn, lerror};
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct Config {
+    bind: String,
+    port: u16,
+    secret: String,
+    dc_ips: String,
+    pool_size: i32,
+    verbose: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            bind: "127.0.0.1".to_string(),
+            port: 1443,
+            secret: String::new(),
+            dc_ips: String::new(),
+            pool_size: 4,
+            verbose: false,
+        }
+    }
+}
 
 struct Args {
     bind: String,
@@ -15,15 +39,57 @@ struct Args {
     verbose: bool,
 }
 
-fn parse_args() -> Args {
+fn config_path() -> PathBuf {
+    let exe = std::env::current_exe().unwrap_or_default();
+    let dir = exe.parent().unwrap_or(std::path::Path::new("."));
+    dir.join("config.toml")
+}
+
+fn load_config() -> Config {
+    let path = config_path();
+    if !path.exists() {
+        let cfg = Config::default();
+        save_config(&cfg);
+        println!("Создан config.toml: {}", path.display());
+        return cfg;
+    }
+
+    match std::fs::read_to_string(&path) {
+        Ok(content) => match toml::from_str(&content) {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                eprintln!("Ошибка парсинга config.toml: {}, использую значения по умолч.", e);
+                Config::default()
+            }
+        },
+        Err(e) => {
+            eprintln!("Ошибка чтения config.toml: {}, использую значения по умолч.", e);
+            Config::default()
+        }
+    }
+}
+
+fn save_config(cfg: &Config) {
+    let path = config_path();
+    match toml::to_string_pretty(cfg) {
+        Ok(toml_str) => {
+            std::fs::write(&path, &toml_str).ok();
+        }
+        Err(e) => {
+            eprintln!("Ошибка сериализации config.toml: {}", e);
+        }
+    }
+}
+
+fn parse_args(config: &Config) -> Args {
     let args: Vec<String> = std::env::args().collect();
     let mut i = 1;
-    let mut bind = "127.0.0.1".to_string();
-    let mut port: u16 = 1443;
-    let mut secret = String::new();
-    let mut dc_ips = String::new();
-    let mut pool_size: i32 = 4;
-    let mut verbose = false;
+    let mut bind = config.bind.clone();
+    let mut port = config.port;
+    let mut secret = config.secret.clone();
+    let mut dc_ips = config.dc_ips.clone();
+    let mut pool_size = config.pool_size;
+    let mut verbose = config.verbose;
 
     while i < args.len() {
         match args[i].as_str() {
@@ -33,7 +99,7 @@ fn parse_args() -> Args {
             }
             "--port" => {
                 i += 1;
-                port = args.get(i).and_then(|s| s.parse().ok()).unwrap_or(1443);
+                port = args.get(i).and_then(|s| s.parse().ok()).unwrap_or(port);
             }
             "--secret" => {
                 i += 1;
@@ -45,7 +111,7 @@ fn parse_args() -> Args {
             }
             "--pool-size" => {
                 i += 1;
-                pool_size = args.get(i).and_then(|s| s.parse().ok()).unwrap_or(4);
+                pool_size = args.get(i).and_then(|s| s.parse().ok()).unwrap_or(pool_size);
             }
             "--verbose" | "-v" => {
                 verbose = true;
@@ -78,7 +144,7 @@ fn print_help() {
     eprintln!();
     eprintln!("Использование: tgwsproxy [опции]");
     eprintln!();
-    eprintln!("Опции:");
+    eprintln!("Опции (переопределяют config.toml):");
     eprintln!("  --bind <IP>         адрес прослушивания (по умолч.: 127.0.0.1)");
     eprintln!("  --port <PORT>       порт (по умолч.: 1443)");
     eprintln!("  --secret <HEX>      секрет прокси (32 hex символа)");
@@ -86,20 +152,37 @@ fn print_help() {
     eprintln!("  --pool-size <N>     размер пула соединений (по умолч.: 4)");
     eprintln!("  --verbose, -v       подробное логирование");
     eprintln!("  --help, -h          эта справка");
+    eprintln!();
+    eprintln!("config.toml загружается автоматически из папки exe.");
+    eprintln!("CLI-флаги переопределяют значения из config.toml.");
+    eprintln!("Если secret не задан нигде — генерируется новый и сохраняется в config.toml.");
+}
+
+fn generate_and_save_secret(config: &mut Config) {
+    let new_secret = hex::encode(rand::random::<[u8; 16]>());
+    *PROXY_SECRET.write() = new_secret.clone();
+    config.secret = new_secret;
+    save_config(config);
+    linfo!("сгенерирован новый секрет и сохранён в config.toml");
 }
 
 #[tokio::main]
 async fn main() {
-    let args = parse_args();
+    let mut config = load_config();
+    let args = parse_args(&config);
 
     init_logging(args.verbose);
     cfproxy::clear_cfproxy_429_cooldowns();
 
+    // Секрет: CLI > config > авто-генерация
     if args.secret.len() == 32 && hex::decode(&args.secret).is_ok() {
         *PROXY_SECRET.write() = args.secret.clone();
-        linfo!("секрет установлен из аргументов");
+        linfo!("секрет установлен из аргументов/конфига");
     } else if !args.secret.is_empty() {
-        lwarn!("некорректный секрет (нужно 32 hex символа), использую значение по умолч.");
+        lwarn!("некорректный секрет (нужно 32 hex символа), генерирую новый");
+        generate_and_save_secret(&mut config);
+    } else {
+        generate_and_save_secret(&mut config);
     }
 
     cfproxy::init_cfproxy_domains();

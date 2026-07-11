@@ -1,4 +1,5 @@
 local.properties
+config.toml
 .gradle/
 build/
 app/build/
