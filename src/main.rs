@@ -5,6 +5,7 @@ use tgwsproxy::cfproxy;
 use tgwsproxy::config::*;
 use tgwsproxy::proxy::{parse_cidr_pool, run_proxy, WsPool};
 use tgwsproxy::{linfo, lwarn, lerror};
+use tgwsproxy::Args;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 
@@ -19,6 +20,7 @@ struct Config {
     verbose: bool,
     log_file: String,
     firewall: bool,
+    tray: bool,
 }
 
 impl Default for Config {
@@ -32,19 +34,9 @@ impl Default for Config {
             verbose: false,
             log_file: String::new(),
             firewall: false,
+            tray: false,
         }
     }
-}
-
-struct Args {
-    bind: String,
-    port: u16,
-    secret: String,
-    dc_ips: String,
-    pool_size: i32,
-    verbose: bool,
-    log_file: String,
-    firewall: bool,
 }
 
 fn config_path() -> PathBuf {
@@ -150,6 +142,7 @@ fn parse_args(config: &Config) -> Args {
     let mut verbose = config.verbose;
     let mut log_file = config.log_file.clone();
     let mut firewall = config.firewall;
+    let mut tray = config.tray;
 
     while i < args.len() {
         match args[i].as_str() {
@@ -179,6 +172,9 @@ fn parse_args(config: &Config) -> Args {
             }
             "--firewall" => {
                 firewall = true;
+            }
+            "--tray" => {
+                tray = true;
             }
             "--install" => {
                 #[cfg(windows)]
@@ -222,6 +218,7 @@ fn parse_args(config: &Config) -> Args {
         verbose,
         log_file,
         firewall,
+        tray,
     }
 }
 
@@ -238,6 +235,7 @@ fn print_help() {
     eprintln!("  --pool-size <N>     размер пула соединений (по умолч.: 4)");
     eprintln!("  --log-file <PATH>   файл лога (по умолч.: только stdout)");
     eprintln!("  --firewall          добавить правило firewall для порта");
+    eprintln!("  --tray              режим системного трея (Windows)");
     eprintln!("  --install           установить как Windows Service");
     eprintln!("  --uninstall         удалить Windows Service");
     eprintln!("  --verbose, -v       подробное логирование");
@@ -316,6 +314,24 @@ fn main() {
         generate_and_save_secret(&mut config);
     } else {
         generate_and_save_secret(&mut config);
+    }
+
+    // Tray mode
+    if args.tray {
+        #[cfg(windows)]
+        {
+            extern "system" {
+                fn FreeConsole() -> i32;
+            }
+            unsafe { FreeConsole(); }
+            tgwsproxy::tray::start_tray(args);
+        }
+        #[cfg(not(windows))]
+        {
+            eprintln!("Режим трея поддерживается только на Windows");
+        }
+        // start_tray никогда не возвращает (бесконечный цикл)
+        std::process::exit(0);
     }
 
     #[cfg(windows)]

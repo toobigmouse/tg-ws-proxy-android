@@ -7,6 +7,20 @@ pub mod balancer;
 
 #[cfg(windows)]
 pub mod service;
+#[cfg(windows)]
+pub mod tray;
+
+pub struct Args {
+    pub bind: String,
+    pub port: u16,
+    pub secret: String,
+    pub dc_ips: String,
+    pub pool_size: i32,
+    pub verbose: bool,
+    pub log_file: String,
+    pub firewall: bool,
+    pub tray: bool,
+}
 
 use config::*;
 use once_cell::sync::OnceCell;
