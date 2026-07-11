@@ -1,7 +1,9 @@
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use std::collections::HashMap;
+use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 // ---------------------------------------------------------------------------
@@ -40,6 +42,8 @@ pub static RECV_BUF: AtomicI32 = AtomicI32::new(DEFAULT_RECV_BUF as i32);
 pub static SEND_BUF: AtomicI32 = AtomicI32::new(DEFAULT_SEND_BUF as i32);
 pub static POOL_SIZE: AtomicI32 = AtomicI32::new(DEFAULT_POOL_SZ);
 pub static LOG_VERBOSE: AtomicBool = AtomicBool::new(false);
+pub static LOG_FILE: Lazy<Mutex<Option<std::fs::File>>> =
+    Lazy::new(|| Mutex::new(None));
 
 #[derive(Clone)]
 pub struct Cfproxy429State {
@@ -262,6 +266,12 @@ fn emit(prefix: &str, msg: &str) {
     let line = format!("{}{}", prefix, msg);
     eprintln!("{}", line);
     android_log_line(&line);
+    #[cfg(not(target_os = "android"))]
+    if let Ok(mut guard) = LOG_FILE.lock() {
+        if let Some(ref mut file) = *guard {
+            let _ = writeln!(file, "{}", line);
+        }
+    }
 }
 
 pub fn log_info(msg: &str) {
@@ -287,6 +297,27 @@ macro_rules! lwarn  { ($($a:tt)*) => { $crate::config::log_warn(&format!($($a)*)
 macro_rules! lerror { ($($a:tt)*) => { $crate::config::log_error(&format!($($a)*)) }; }
 #[macro_export]
 macro_rules! ldebug { ($($a:tt)*) => { $crate::config::log_debug(&format!($($a)*)) }; }
+
+pub fn init_file_logging(path: &str) {
+    if path.is_empty() {
+        return;
+    }
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
+        Ok(file) => {
+            if let Ok(mut guard) = LOG_FILE.lock() {
+                *guard = Some(file);
+            }
+            log_info(&format!("логирование в файл: {}", path));
+        }
+        Err(e) => {
+            log_warn(&format!("не удалось открыть файл лога {}: {}", path, e));
+        }
+    }
+}
 
 pub fn init_logging(verbose: bool) {
     LOG_VERBOSE.store(verbose, Ordering::Relaxed);

@@ -5,6 +5,9 @@ pub mod proxy;
 pub mod ws;
 pub mod balancer;
 
+#[cfg(windows)]
+pub mod service;
+
 use config::*;
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
